@@ -20,6 +20,9 @@ URL_PREFIX = 'https://my.usfirst.org/myarea/index.lasso'
 MATCH_RESULTS_HEADINGS = ['Time', 'Description', 'Match', 'Red 1', 'Red 2', 'Red 3',
                          'Blue 1', 'Blue 2', 'Blue 3', 'Red Score', 'Blue Score',
                          'Match Type', 'Event Name', 'Year']
+STANDINGS_HEADINGS = ['Rank', 'Team', 'QS', 'ASSIST', 'AUTO', 'T&C', 'TELEOP',
+                      'Record (W-L-T)', 'DQ', 'PLAYED', 'Event Name', 'Year']
+AWARDS_HEADINGS = ['Award', 'Team', 'Team Name', 'Person', 'Home Town', 'Event Name', 'Year']
 
 def get_event_list():
     """ Returns the list of the event URLs that we want to crawl, filtering out the ones we
@@ -53,14 +56,14 @@ def get_event_details(event_url):
     print '\nGetting details for event:', event_name
 
     match_results_url = soup.find('a', href=re.compile('matchresults')).get('href')
-    standings_url = soup.find('a', href=re.compile('matchresults')).get('href')
-    awards_url = soup.find('a', href=re.compile('matchresults')).get('href')
+    standings_url = soup.find('a', href=re.compile('rankings')).get('href')
+    awards_url = soup.find('a', href=re.compile('awards')).get('href')
 
     match_results = get_match_results(match_results_url, event_name)
     standings = get_standings(standings_url, event_name)
     awards = get_awards(awards_url, event_name)
 
-    return {'match_results': match_results, 'standings': standings_url, 'awards': awards_url}
+    return {'match_results': match_results, 'standings': standings, 'awards': awards}
 
 def get_match_results(match_results_url, event_name):
     """ Scrape match results and return them in a list of lists. """
@@ -80,13 +83,13 @@ def get_match_results(match_results_url, event_name):
 
     data = []
 
-    for row in qual_rows[3:]:
+    for row in qual_rows[3:]: # Skip first 3 rows, which don't contain data
         new_row = [td.text.strip() for td in row.findAll('td')]
         new_row.insert(1, '') # Insert empty description
         new_row = new_row + ['Qualification', event_name, YEAR]
         data.append(new_row)
 
-    for row in elim_rows[3:]:
+    for row in elim_rows[3:]: # Skip first 3 rows, which don't contain data
         new_row = [td.text for td in row.findAll('td')]
         new_row = new_row + ['Elimination', event_name, YEAR]
         data.append(new_row)
@@ -96,16 +99,44 @@ def get_match_results(match_results_url, event_name):
 def get_standings(standings_url, event_name):
     """ Scrape match results and return them in a list of lists. """
 
-    print '\tGetting standings for:', event_name
+    print '\tGetting standings for:', event_name, '(url:', standings_url, ')'
     html = urlopen(standings_url)
     soup = BeautifulSoup(html)
+
+    tables = soup.findAll('table')
+    standings_table = tables[2]
+
+    rows = standings_table.findAll('tr')
+
+    data = []
+
+    for row in rows[2:]: # Skip first 2 rows, which don't contain data
+        new_row = [td.text.strip() for td in row.findAll('td')]
+        new_row = new_row + [event_name, YEAR]
+        data.append(new_row)
+
+    return data
 
 def get_awards(awards_url, event_name):
     """ Scrape match results and return them in a list of lists. """
 
-    print '\tGetting awards for:', event_name
+    print '\tGetting awards for:', event_name, '(url:', awards_url, ')'
     html = urlopen(awards_url)
     soup = BeautifulSoup(html)
+
+    tables = soup.findAll('table')
+    awards_table = tables[2]
+
+    rows = awards_table.findAll('tr')
+
+    data = []
+
+    for row in rows[2:]: # Skip first 2 rows, which don't contain data
+        new_row = [td.text.strip() for td in row.findAll('td')]
+        new_row = new_row + [event_name, YEAR]
+        data.append(new_row)
+
+    return data
 
 def write_csv_file(filename, data, column_headers):
     with open(filename, 'w') as match_results_file:
@@ -123,8 +154,12 @@ def main():
     for url in get_event_list():
         results = get_event_details(url)
         match_results += results['match_results']
+        standings += results['standings']
+        awards += results['awards']
 
     write_csv_file('match_results.csv', match_results, MATCH_RESULTS_HEADINGS)
+    write_csv_file('standings.csv', standings, STANDINGS_HEADINGS)
+    write_csv_file('awards.csv', awards, AWARDS_HEADINGS)
 
 if __name__ == '__main__':
     main()
