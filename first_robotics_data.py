@@ -10,7 +10,7 @@ __updated__ = "2014-04-07"
 __version__  = "1.0.0"
 
 import re
-import csv
+import unicodecsv as csv
 from urllib2 import urlopen
 from bs4 import BeautifulSoup
 
